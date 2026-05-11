@@ -1,7 +1,26 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+
+from pydantic import BaseModel
+from groq import Groq
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 app = FastAPI()
 
-@app.get("/")
-def home():
-    return {"message": "Hello FastAPI"}
+
+
+class ChatInput(BaseModel):
+    message: str
+
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+
+@app.post("/chat")
+def chat(data: ChatInput):
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": data.message}]
+    )
+    return {"reply": response.choices[0].message.content}
