@@ -1,0 +1,451 @@
+(function () {
+  "use strict";
+
+  function resolveUserId() {
+    var q = new URLSearchParams(window.location.search).get("user_id");
+    if (q && q.trim()) return q.trim();
+    return window.__EMO_USER_ID__ || "default";
+  }
+
+  var uid = resolveUserId();
+
+  function escapeHtml(text) {
+    var d = document.createElement("div");
+    d.textContent = text;
+    return d.innerHTML;
+  }
+
+  function formatTime() {
+    return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function apiJson(path, options) {
+    return fetch(path, options).then(function (r) {
+      if (!r.ok) return r.text().then(function (t) {
+        throw new Error(t || r.statusText);
+      });
+      return r.json();
+    });
+  }
+
+  function updateSidebarUser() {
+    var nameEl = document.getElementById("sidebarUserName");
+    var av = document.getElementById("sidebarAvatar");
+    if (nameEl) nameEl.textContent = uid === "default" ? "You" : uid;
+    if (av) av.textContent = (uid.charAt(0) || "Y").toUpperCase();
+  }
+
+  function refreshSidebarMood() {
+    var line = document.getElementById("sidebarMoodText");
+    if (!line) return;
+    apiJson("/api/mood/latest/" + encodeURIComponent(uid))
+      .then(function (data) {
+        if (!data.mood) {
+          line.textContent = "Log your mood anytime";
+          return;
+        }
+        line.textContent = "Latest: " + data.mood;
+        var dash = document.getElementById("dashSuggestionText");
+        if (dash && data.suggestions && data.suggestions.length) {
+          dash.textContent = data.suggestions[0];
+        }
+      })
+      .catch(function () {
+        line.textContent = "Mood check-in";
+      });
+  }
+
+  function initDashboardMoods() {
+    var emojis = document.querySelector(".mood-emojis");
+    if (!emojis) return;
+    emojis.addEventListener("click", function (e) {
+      var btn = e.target.closest(".mood-btn");
+      if (!btn || !emojis.contains(btn)) return;
+      emojis.querySelectorAll(".mood-btn").forEach(function (b) {
+        b.classList.remove("selected");
+      });
+      btn.classList.add("selected");
+      var label = btn.getAttribute("title") || "okay";
+      var hint = document.getElementById("dashboardMoodSaved");
+      apiJson("/api/mood", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: uid, mood: label }),
+      })
+        .then(function () {
+          if (hint) hint.textContent = "Saved — thank you for checking in.";
+          refreshSidebarMood();
+        })
+        .catch(function (err) {
+          if (hint) hint.textContent = "Could not save: " + err.message;
+        });
+    });
+  }
+
+  function initChat() {
+    var messagesEl = document.getElementById("chatMessages");
+    var input = document.getElementById("chatInput");
+    if (!messagesEl || !input) return;
+
+    function appendUser(text) {
+      var wrap = document.createElement("div");
+      wrap.className = "msg user";
+      wrap.innerHTML =
+        '<div class="msg-avatar">' +
+        escapeHtml((uid.charAt(0) || "Y").toUpperCase()) +
+        "</div><div><div class=" +
+        '"msg-bubble">' +
+        escapeHtml(text) +
+        "</div><div class=\"msg-time\">" +
+        formatTime() +
+        "</div></div>";
+      messagesEl.appendChild(wrap);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function appendBot(html, crisis) {
+      var wrap = document.createElement("div");
+      wrap.className = "msg bot";
+      var bubbleClass = "msg-bubble" + (crisis ? " crisis" : "");
+      wrap.innerHTML =
+        '<div class="msg-avatar">🌿</div><div><div class="' +
+        bubbleClass +
+        '">' +
+        html +
+        '</div><div class="msg-time">' +
+        formatTime() +
+        "</div></div>";
+      messagesEl.appendChild(wrap);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function showTyping() {
+      var t = document.createElement("div");
+      t.className = "msg bot";
+      t.id = "emoTyping";
+      t.innerHTML =
+        '<div class="msg-avatar">🌿</div><div class="typing-indicator">' +
+        '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>';
+      messagesEl.appendChild(t);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function hideTyping() {
+      var t = document.getElementById("emoTyping");
+      if (t) t.remove();
+    }
+
+    window.sendMessage = function () {
+      var text = input.value.trim();
+      if (!text) return;
+      input.value = "";
+      input.style.height = "";
+      appendUser(text);
+      showTyping();
+      apiJson("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: uid, message: text }),
+      })
+        .then(function (data) {
+          hideTyping();
+          var reply = data.response || "";
+          var crisis = !!data.crisis;
+          var html = crisis ? escapeHtml(reply).replace(/\n/g, "<br>") : escapeHtml(reply).replace(/\n/g, "<br>");
+          appendBot(html, crisis);
+        })
+        .catch(function (err) {
+          hideTyping();
+          appendBot(escapeHtml("Something went wrong: " + err.message), false);
+        });
+    };
+
+    window.handleChatKey = function (e) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        window.sendMessage();
+      }
+    };
+
+    window.autoResize = function (el) {
+      el.style.height = "auto";
+      el.style.height = Math.min(el.scrollHeight, 120) + "px";
+    };
+
+    window.selectChatMood = function (mood) {
+      var map = {
+        peaceful: "I'm feeling quite peaceful today, actually.",
+        anxious: "I'm feeling pretty anxious and unsettled.",
+        sad: "I'm feeling sad and a bit low right now.",
+        confused: "I'm feeling confused and unsure about things.",
+        other: "It's complicated — a mix of emotions.",
+      };
+      input.value = map[mood] || "I'm not sure how to describe it.";
+      window.sendMessage();
+    };
+
+    window.sendSuggestion = function (chip) {
+      input.value = chip.textContent.trim();
+      window.sendMessage();
+    };
+
+    window.newChat = function () {
+      messagesEl.innerHTML =
+        '<div class="msg bot">' +
+        '<div class="msg-avatar">🌿</div><div><div class="msg-bubble">' +
+        "Hello — I'm glad you're here. How are you feeling right now? Share as much or as little as you like." +
+        '<div class="mood-selector-msg">' +
+        '<div class="mood-option" onclick="selectChatMood(\'peaceful\')"><span>😌</span>Peaceful</div>' +
+        '<div class="mood-option" onclick="selectChatMood(\'anxious\')"><span>😰</span>Anxious</div>' +
+        '<div class="mood-option" onclick="selectChatMood(\'sad\')"><span>😢</span>Sad</div>' +
+        '<div class="mood-option" onclick="selectChatMood(\'confused\')"><span>😕</span>Confused</div>' +
+        '<div class="mood-option" onclick="selectChatMood(\'other\')"><span>💬</span>Other</div>' +
+        "</div></div><div class=\"msg-time\">" +
+        formatTime() +
+        "</div></div></div>";
+    };
+  }
+
+  function initJournal() {
+    var ta = document.getElementById("journalText");
+    var dateEl = document.getElementById("journalDate");
+    if (!ta || !dateEl) return;
+
+    dateEl.textContent = new Date().toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    window.updateWordCount = function () {
+      var text = ta.value.trim();
+      var count = text ? text.split(/\s+/).length : 0;
+      var wc = document.getElementById("wordCount");
+      if (wc) wc.textContent = count + (count === 1 ? " word" : " words");
+    };
+
+    window.pickMood = function (el) {
+      el.closest(".mood-scale").querySelectorAll(".mood-scale-item").forEach(function (i) {
+        i.classList.remove("selected");
+      });
+      el.classList.add("selected");
+    };
+
+    window.toggleTag = function (el) {
+      el.classList.toggle("active");
+    };
+
+    window.usePrompt = function (el) {
+      var p = document.getElementById("journalPrompt");
+      if (p) p.textContent = '"' + el.textContent.trim() + '"';
+      ta.focus();
+    };
+
+    window.saveEntry = function () {
+      var text = ta.value.trim();
+      if (!text) {
+        alert("Please write something before saving.");
+        return;
+      }
+      var moodItem = document.querySelector(".mood-scale-item.selected");
+      var moodLabel = "";
+      if (moodItem) {
+        moodLabel = moodItem.cloneNode(true);
+        var sp = moodLabel.querySelector("span");
+        if (sp) sp.remove();
+        moodLabel = moodLabel.textContent.trim();
+      }
+      var tags = Array.from(document.querySelectorAll(".tag.active"))
+        .map(function (t) {
+          return t.textContent.trim();
+        })
+        .join(", ");
+      apiJson("/api/journal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: uid,
+          content: text + (tags ? "\n\nTags: " + tags : ""),
+          mood: moodLabel || null,
+        }),
+      })
+        .then(function () {
+          alert("Entry saved.");
+          ta.value = "";
+          window.updateWordCount();
+          loadJournalRecent();
+        })
+        .catch(function (e) {
+          alert("Save failed: " + e.message);
+        });
+    };
+
+    function loadJournalRecent() {
+      var list = document.getElementById("journalRecentList");
+      if (!list) return;
+      apiJson("/api/journal/" + encodeURIComponent(uid) + "?limit=8")
+        .then(function (rows) {
+          list.innerHTML = "";
+          rows.forEach(function (row) {
+            var d = new Date(row.timestamp);
+            var item = document.createElement("div");
+            item.className = "entry-item";
+            item.innerHTML =
+              '<div class="entry-date">' +
+              escapeHtml(d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })) +
+              '</div><div class="entry-preview">' +
+              escapeHtml((row.content || "").slice(0, 80)) +
+              (row.content && row.content.length > 80 ? "…" : "") +
+              '</div><div class="entry-mood">' +
+              escapeHtml(row.mood || "📝") +
+              "</div>";
+            list.appendChild(item);
+          });
+        })
+        .catch(function () {
+          list.innerHTML = '<div class="entry-preview">Could not load entries.</div>';
+        });
+    }
+
+    loadJournalRecent();
+  }
+
+  function initRefreshBreathing() {
+    var circle = document.getElementById("breathingCircle");
+    if (!circle) return;
+
+    var breathingActive = false;
+    var breathInterval;
+    var phases = [
+      { text: "Inhale", cls: "inhale", duration: 4 },
+      { text: "Hold", cls: "", duration: 4 },
+      { text: "Exhale", cls: "exhale", duration: 4 },
+      { text: "Hold", cls: "", duration: 4 },
+    ];
+
+    window.startBreathing = function () {
+      var textEl = document.getElementById("breathingText");
+      var counterEl = document.getElementById("breathingCounter");
+      var btn = document.getElementById("breathingBtn");
+      if (!textEl || !counterEl) return;
+
+      if (breathingActive) {
+        breathingActive = false;
+        clearInterval(breathInterval);
+        textEl.textContent = "Tap to begin";
+        counterEl.textContent = "4";
+        circle.className = "breathing-circle";
+        if (btn) btn.textContent = "Start Exercise";
+        return;
+      }
+      breathingActive = true;
+      if (btn) btn.textContent = "Stop Exercise";
+      var phaseIndex = 0;
+      var counter = phases[0].duration;
+
+      function runPhase() {
+        var phase = phases[phaseIndex];
+        textEl.textContent = phase.text;
+        counterEl.textContent = String(counter);
+        circle.className = "breathing-circle " + (phase.cls || "");
+      }
+
+      runPhase();
+      breathInterval = setInterval(function () {
+        counter--;
+        if (counter <= 0) {
+          phaseIndex = (phaseIndex + 1) % phases.length;
+          counter = phases[phaseIndex].duration;
+        }
+        runPhase();
+      }, 1000);
+    };
+
+    window.scrollToBreathing = function () {
+      var w = document.getElementById("breathingWidget");
+      if (w) w.scrollIntoView({ behavior: "smooth" });
+    };
+  }
+
+  function initStressToggle() {
+    window.toggleDone = function (el) {
+      el.classList.toggle("completed");
+      el.textContent = el.classList.contains("completed") ? "✓" : "";
+    };
+  }
+
+  function initAnalytics() {
+    var heatmap = document.getElementById("heatmap");
+    if (!heatmap) return;
+
+    function buildHeatmap() {
+      var moodLevels = [0, 1, 2, 1, 3, 4, 3, 1, 2, 3, 4, 4, 3, 2, 2, 3, 3, 2, 4, 3, 3, 1, 2, 3, 3, 4, 4, 3, 2, 3, 0, 0, 0, 0, 0];
+      var labels = ["-", "Low", "Okay", "Good", "Great"];
+      heatmap.innerHTML = "";
+      moodLevels.forEach(function (level) {
+        var day = document.createElement("div");
+        day.className = "heat-day heat-" + level;
+        day.title = "Mood: " + (labels[level] || "-");
+        heatmap.appendChild(day);
+      });
+    }
+
+    function buildMonthlyBars() {
+      var container = document.getElementById("monthlyBars");
+      if (!container) return;
+      container.innerHTML = "";
+      var months = [
+        { m: "Oct", v: 55 },
+        { m: "Nov", v: 62 },
+        { m: "Dec", v: 48 },
+        { m: "Jan", v: 58 },
+        { m: "Feb", v: 65 },
+        { m: "Mar", v: 71 },
+        { m: "Apr", v: 76 },
+      ];
+      var max = 80;
+      months.forEach(function (_ref) {
+        var m = _ref.m;
+        var v = _ref.v;
+        var wrap = document.createElement("div");
+        wrap.className = "monthly-bar-wrap";
+        var pct = Math.round((v / max) * 120);
+        var color = v >= 70 ? "var(--sage)" : v >= 60 ? "var(--sage-light)" : "var(--blush)";
+        wrap.innerHTML =
+          '<div class="monthly-bar-val">' +
+          v +
+          '%</div><div class="monthly-bar" style="height:' +
+          pct +
+          "px;background:" +
+          color +
+          '"></div><div class="monthly-bar-label">' +
+          m +
+          "</div>";
+        container.appendChild(wrap);
+      });
+    }
+
+    buildHeatmap();
+    buildMonthlyBars();
+  }
+
+  function boot() {
+    uid = resolveUserId();
+    window.__EMO_USER_ID__ = uid;
+    updateSidebarUser();
+    refreshSidebarMood();
+    initDashboardMoods();
+    initChat();
+    initJournal();
+    initRefreshBreathing();
+    initStressToggle();
+    initAnalytics();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();

@@ -1,0 +1,133 @@
+MENTAL HEALTH CHATBOT – PROJECT FLOW
+
+TECH STACK
+Backend: FastAPI (Python)
+AI Model: Groq API (optional Gemini via env)
+Database: SQLite (initially)
+Future Scope: PostgreSQL (if scaling)
+Architecture: Modular (routes, services, models)
+
+---
+
+CORE FEATURES
+
+1. AI CHATBOT
+   Handles all user conversations.
+   Uses Gemini API to generate natural, supportive responses.
+
+2. CRISIS DETECTION
+   Checks every user message before sending to AI.
+   Detects harmful keywords (suicide, self-harm).
+   Overrides response with safe and supportive message.
+
+3. JOURNALLING
+   Users can write daily thoughts.
+   Entries are stored in database.
+   Used as context for chatbot responses.
+
+4. MOOD TRACKING
+   User logs mood daily (happy, sad, anxious, etc.).
+   Helps track emotional trends over time.
+
+5. EMOTION-BASED SUGGESTIONS
+   Based on detected mood, system suggests simple actions.
+   Example: breathing exercises, taking a break, etc.
+
+6. GOALS FEATURE
+   Users can set goals through chatbot conversation.
+   Types:
+
+* Wellbeing goals
+* Life goals
+* Micro-goals
+
+Chatbot performs weekly check-ins.
+Encourages reflection instead of simple completion.
+
+---
+
+SYSTEM FLOW
+
+1. User sends message
+2. Message goes to backend (FastAPI)
+3. Crisis detection runs first
+   If risk detected → send safe response
+4. If safe:
+
+   * Fetch user context (mood, goals, journal)
+   * Send message to Gemini API
+5. Gemini generates response
+6. Response returned to user
+7. Store interaction in database
+
+---
+
+GOAL FLOW
+
+1. User expresses intention in chat
+   Example: "I want to sleep earlier"
+2. Chatbot asks for confirmation
+3. Goal is stored in database
+4. Weekly check-in triggered by system
+5. Chatbot asks reflective questions
+6. Updates goal progress
+
+---
+
+MOOD FLOW
+
+1. User logs daily mood
+2. Mood stored in database
+3. Chatbot uses mood as context
+4. Over time:
+
+   * Identify patterns
+   * Correlate with goals
+
+---
+
+FUTURE ENHANCEMENTS
+
+* Goal–Mood correlation insights
+* Personalized suggestions using AI
+* Notification system for reminders
+* User authentication (login/signup)
+* Dashboard for mood trends
+
+---
+
+PROJECT PHASES
+
+Phase 1:
+
+* Basic chatbot (Gemini API)
+* Crisis detection
+
+Phase 2:
+
+* Mood tracking
+* Journalling
+
+Phase 3:
+
+* Goals feature
+* Weekly check-ins
+
+Phase 4:
+
+* Insights and improvements
+
+---
+
+KEY DESIGN PRINCIPLE
+
+This is not a productivity app.
+This is a mental health support system.
+
+Focus:
+
+* Reflection over completion
+* Support over automation
+* Conversation over forms
+
+---
