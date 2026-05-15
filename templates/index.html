@@ -203,6 +203,46 @@
     background: var(--sage);
     animation: pulse 2s infinite;
   }
+        /* Toggle switch */
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+  }
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: 0.3s;
+    border-radius: 24px;
+  }
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+  }
+  input:checked + .slider {
+    background-color: var(--sage);
+  }
+  input:checked + .slider:before {
+    transform: translateX(20px);
+  }
 
   @keyframes pulse {
     0%, 100% { opacity: 1; transform: scale(1); }
@@ -1286,11 +1326,11 @@
         <div class="mood-check">
           <p>Today's mood</p>
           <div class="mood-emojis">
-            <button class="mood-btn" onclick="selectMood(this)" title="Awful">😞</button>
-            <button class="mood-btn" onclick="selectMood(this)" title="Bad">😔</button>
-            <button class="mood-btn selected" onclick="selectMood(this)" title="Okay">😐</button>
-            <button class="mood-btn" onclick="selectMood(this)" title="Good">🙂</button>
-            <button class="mood-btn" onclick="selectMood(this)" title="Great">😊</button>
+            <button class="mood-btn" onclick="selectMood(this, 'Awful', 1)" title="Awful">😞</button>
+            <button class="mood-btn" onclick="selectMood(this, 'Bad', 2)" title="Bad">😔</button>
+            <button class="mood-btn selected" onclick="selectMood(this, 'Okay', 3)" title="Okay">😐</button>
+            <button class="mood-btn" onclick="selectMood(this, 'Good', 4)" title="Good">🙂</button>
+            <button class="mood-btn" onclick="selectMood(this, 'Great', 5)" title="Great">😊</button>
           </div>
         </div>
       </div>
@@ -1460,6 +1500,14 @@
           <div class="bot-info">
             <h3>Serenity</h3>
             <div class="bot-status"><span class="status-dot"></span> Here with you</div>
+          </div>
+          <!-- 👈 toggle INSIDE the chat-header -->
+          <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+            <label style="font-size: 12px; color: var(--ink-soft);">Include my context</label>
+            <label class="switch">
+              <input type="checkbox" id="includeContextToggle" checked>
+              <span class="slider round"></span>
+            </label>
           </div>
         </div>
 
@@ -1700,7 +1748,7 @@
       </div>
       <div class="topbar-actions">
         <button class="btn btn-ghost">View All Entries</button>
-        <button class="btn btn-primary">Save Entry</button>
+        <button class="btn btn-primary" onclick="saveJournalEntry()">Save Entry</button>
       </div>
     </div>
 
@@ -1918,9 +1966,17 @@
   }
 
   // ── Mood selection ──
-  function selectMood(btn) {
+  function selectMood(btn, mood, score) {
     btn.closest('.mood-emojis').querySelectorAll('.mood-btn').forEach(b => b.classList.remove('selected'));
     btn.classList.add('selected');
+
+    fetch('/mood/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mood, score })
+    }).then(res => res.json()).then(data => {
+        console.log('Mood saved:', data);
+    });
   }
 
   function selectChatMood(mood) {
@@ -2068,6 +2124,22 @@ function sendMessage() {
     const count = text ? text.split(/\s+/).length : 0;
     document.getElementById('wordCount').textContent = count + ' word' + (count !== 1 ? 's' : '');
   }
+  async function saveJournalEntry() {
+  const content = document.getElementById('journalText').value.trim();
+  if (!content) return alert('Write something first!');
+
+  const mood = document.querySelector('.mood-scale-item.selected')?.querySelector('span')?.textContent || '😐';
+  const tags = [...document.querySelectorAll('.tag.active')].map(t => t.textContent.trim()).join(', ');
+
+  const res = await fetch('/journal/entry', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content, mood, tags })
+  });
+
+  const data = await res.json();
+  if (data.status === 'saved') alert('Entry saved! ✅');
+}
 
   function pickMood(el) {
     el.closest('.mood-scale').querySelectorAll('.mood-scale-item').forEach(i => i.classList.remove('selected'));
@@ -2080,7 +2152,31 @@ function sendMessage() {
     document.querySelector('.journal-prompt').textContent = '"' + el.textContent + '"';
     document.getElementById('journalText').focus();
   }
-
+    // ── Load chat history from DB ──
+  async function loadChatHistory() {
+  try {
+    const res = await fetch('/chat/history');
+    const data = await res.json();
+    
+    const chatMessages = document.getElementById('chatMessages');
+    if (!chatMessages || data.messages.length === 0) return;
+    
+    chatMessages.innerHTML = '';
+    
+    data.messages.forEach(msg => {
+      const div = document.createElement('div');
+      div.className = `msg ${msg.role}`;
+      div.innerHTML = `<div class="msg-avatar">${msg.role === 'user' ? 'A' : '🌿'}</div>
+                       <div><div class="msg-bubble">${msg.content.replace(/\n/g, '<br>')}</div>
+                       <div class="msg-time">${getTime()}</div></div>`;
+      chatMessages.appendChild(div);
+    });
+    
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  } catch (error) {
+    console.error('Failed to load chat history:', error);
+  }
+}
   // ── Analytics Heatmap ──
   function buildHeatmap() {
     const heatmap = document.getElementById('heatmap');
@@ -2116,6 +2212,7 @@ function sendMessage() {
   }
 
   // Init
+  loadChatHistory();
   buildHeatmap();
   buildMonthlyBars();
 </script>

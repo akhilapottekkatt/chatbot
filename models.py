@@ -13,6 +13,7 @@ class Mood(Base):
     __tablename__ = "moods"
     id = Column(Integer, primary_key=True, index=True)
     mood = Column(String)
+    score = Column(Integer, default=3)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
 class JournalEntry(Base):
@@ -20,6 +21,7 @@ class JournalEntry(Base):
     id = Column(Integer, primary_key=True, index=True)
     content = Column(Text)
     mood = Column(String)
+    tags = Column(String, default="")
     timestamp = Column(DateTime, default=datetime.utcnow)
 class Goal(Base):
     __tablename__ = "goals"
