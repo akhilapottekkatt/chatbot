@@ -1,172 +1,63 @@
-from fastapi import FastAPI, Request, Depends
-from sqlalchemy.orm import Session
-from database import engine, get_db, Base
-import models
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
-from groq import Groq
-from dotenv import load_dotenv
-import os
+import models
+from database import Base, engine
+from routes.chat import router as chat_router
+from routes.goals import router as goals_router
+from routes.journal import router as journal_router
+from routes.mood import router as mood_router
 
-load_dotenv()
-
-app = FastAPI()
+app = FastAPI(title="Mental Health Chatbot API", version="1.0.0")
 Base.metadata.create_all(bind=engine)
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-class ChatInput(BaseModel):
-    message: str
-    include_context: bool = False
+app.include_router(chat_router)
+app.include_router(mood_router)
+app.include_router(journal_router)
+app.include_router(goals_router)
 
-class JournalInput(BaseModel):
-    content: str
-    mood: str
-    tags: str = ""  
-class MoodInput(BaseModel):
-    mood: str
-    score: int      
-
-
-@app.get("/")
-async def home(request: Request):
-    return templates.TemplateResponse(request, "index.html")
-
-
-# Crisis keywords
-CRISIS_KEYWORDS = [
-    "suicide", "suicidal", "kill myself", "want to die", "end my life",
-    "self harm", "self-harm", "cutting myself", "hurt myself",
-    "no reason to live", "can't go on", "don't want to be here"
-]
-
-SAFE_RESPONSE = """I hear you, and I'm really glad you reached out. 💙
-
-What you're feeling matters, and you don't have to face this alone. Please talk to someone who can help right now:
-
-- iCall (India): 9152987821
-- Vandrevala Foundation: 1860-2662-345 (24/7)
-- SMS "HELLO" to 741741
-
-I'm here with you, but please reach out to one of these — they're trained to help in moments like this."""
-
-SYSTEM_PROMPT = """You are EMO, a warm and compassionate mental health companion.
-
-Your role:
-- Listen deeply and respond with empathy first, advice second
-- Never be dismissive or generic
-- Use gentle, calm language — no clinical jargon
-- Keep responses concise (3-5 sentences max) unless the user needs more
-- If someone seems distressed, acknowledge their feelings before anything else
-- You are not a replacement for professional help — remind users gently when appropriate
-
-You are not ChatGPT. You are EMO. Stay in character always."""
-
-def check_crisis_keywords(message: str) -> bool:
-    message_lower = message.lower()
-    return any(keyword in message_lower for keyword in CRISIS_KEYWORDS)
-
-def check_crisis_ai(message: str) -> bool:
-    result = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {
-                "role": "system",
-                "content": """You are a crisis detection system. 
-Analyze the message and reply with ONLY 'yes' or 'no'.
-Reply 'yes' if the message suggests: suicidal thoughts, self-harm, 
-wanting to die, or severe emotional crisis — even with typos or indirect language.
-Reply 'no' for everything else. Nothing else. Just yes or no."""
-            },
-            {"role": "user", "content": message}
-        ],
-        max_tokens=5
+def _page(request: Request, template: str, active_nav: str, user_id: str = "default"):
+    return templates.TemplateResponse(
+        template,
+        {"request": request, "active_nav": active_nav, "user_id": user_id or "default"},
     )
-    answer = result.choices[0].message.content.strip().lower()
-    return answer.startswith("yes")
 
-@app.post("/chat")
+@app.get("/api/health")
+def api_health():
+    return {
+        "name": "mental-health-chatbot",
+        "status": "ok",
+        "message": "Open /dashboard for the app UI, or /docs for API.",
+    }
 
-def chat(data: ChatInput, db: Session = Depends(get_db)):
-    # Crisis detection (keep your existing code)
-    if check_crisis_keywords(data.message):
-        return {"response": SAFE_RESPONSE}
-    if check_crisis_ai(data.message):
-        return {"response": SAFE_RESPONSE}
-    
-    # Save user message
-    db.add(models.Message(role="user", content=data.message))
-    db.commit()
-    
-    # Build context ONLY if user allows it
-    context_parts = []
-    
-    if data.include_context:
-        # Get last mood
-        last_mood = db.query(models.Mood).order_by(models.Mood.timestamp.desc()).first()
-        if last_mood:
-            context_parts.append(f"User's last logged mood: {last_mood.mood} (score {last_mood.score}/5)")
-        
-        # Get last journal entry
-        last_journal = db.query(models.JournalEntry).order_by(models.JournalEntry.timestamp.desc()).first()
-        if last_journal:
-            preview = last_journal.content[:150] + ("..." if len(last_journal.content) > 150 else "")
-            context_parts.append(f"User's last journal entry: \"{preview}\" with mood {last_journal.mood}")
-        
-        # Get active goals (will work when you add goals)
-        goals = db.query(models.Goal).filter(models.Goal.status == "active").all()
-        if goals:
-            goal_list = "\n".join([f"- {g.title}" for g in goals])
-            context_parts.append(f"User's active goals:\n{goal_list}")
-    
-    context_text = "\n".join(context_parts) if context_parts else "No additional context available (user chose not to share or no data)."
-    
-    # Build system prompt with context note
-    if data.include_context:
-        contextual_system_prompt = SYSTEM_PROMPT + f"""
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse(url="/dashboard", status_code=302)
 
-RELEVANT CONTEXT ABOUT THE USER (they allowed sharing):
-{context_text}
+@app.get("/dashboard", response_class=HTMLResponse, name="page_dashboard")
+def page_dashboard(request: Request, user_id: str = "default"):
+    return _page(request, "dashboard.html", "dashboard", user_id)
 
-Use this context to personalize your responses naturally."""
-    else:
-        contextual_system_prompt = SYSTEM_PROMPT + """
+@app.get("/chat", response_class=HTMLResponse, name="page_chat")
+def page_chat(request: Request, user_id: str = "default"):
+    return _page(request, "chat.html", "chat", user_id)
 
-Note: The user has chosen NOT to share their mood/journal/goals context. 
-Do NOT ask about their mood, journal, or goals. Just respond to their message normally."""
-    
-    # Get AI response
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {"role": "system", "content": contextual_system_prompt},
-            {"role": "user", "content": data.message}
-        ]
-    )
-    reply = response.choices[0].message.content
-    
-    # Save bot response
-    db.add(models.Message(role="bot", content=reply))
-    db.commit()
-    
-    return {"response": reply}
-@app.post("/journal/entry")
-def save_journal(data: JournalInput, db: Session = Depends(get_db)):
-    entry = models.JournalEntry(
-        content=data.content,
-        mood=data.mood,
-        tags=data.tags
-    )
-    db.add(entry)
-    db.commit()
-    return {"status": "saved"}
-@app.post("/mood/log")
-def log_mood(data: MoodInput, db: Session = Depends(get_db)):
-    entry = models.Mood(mood=data.mood, score=data.score)
-    db.add(entry)
-    db.commit()
-    return {"status": "saved"}
-@app.get("/chat/history")
-def get_chat_history(db: Session = Depends(get_db)):
-    messages = db.query(models.Message).order_by(models.Message.timestamp).limit(50).all()
-    return {"messages": [{"role": m.role, "content": m.content} for m in messages]}
+@app.get("/journal", response_class=HTMLResponse, name="page_journal")
+def page_journal(request: Request, user_id: str = "default"):
+    return _page(request, "journal.html", "journal", user_id)
+
+@app.get("/refresh", response_class=HTMLResponse, name="page_refresh")
+def page_refresh(request: Request, user_id: str = "default"):
+    return _page(request, "refresh.html", "refresh", user_id)
+
+@app.get("/stress", response_class=HTMLResponse, name="page_stress")
+def page_stress(request: Request, user_id: str = "default"):
+    return _page(request, "stress.html", "stress", user_id)
+
+@app.get("/analytics", response_class=HTMLResponse, name="page_analytics")
+def page_analytics(request: Request, user_id: str = "default"):
+    return _page(request, "analytics.html", "analytics", user_id)
