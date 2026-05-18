@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}EMO{% endblock %}</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', path='base.css') }}">
+{% block head_extra %}{% endblock %}
+</head>
+<body>
+{% include "partials/sidebar.html" %}
+<main class="main">
+{% block content %}{% endblock %}
+</main>
+<script>
+  window.__EMO_USER_ID__ = {{ user_id|tojson }};
+</script>
+<script src="{{ url_for('static', path='emo.js') }}" defer></script>
+{% block scripts_extra %}{% endblock %}
+</body>
+</html>

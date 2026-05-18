@@ -1,0 +1,51 @@
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-mark">
+      <div class="logo-icon">
+        <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10 2C5.6 2 2 5.6 2 10s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8z" fill="white" opacity="0.3"/>
+          <path d="M10 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM6 14c0-2.2 1.8-4 4-4s4 1.8 4 4" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h1>EMO</h1>
+    </div>
+    <p>Wellness Companion</p>
+  </div>
+  <nav class="nav">
+    <a class="nav-item{% if active_nav == 'dashboard' %} active{% endif %}" href="{{ url_for('page_dashboard') }}?user_id={{ user_id | urlencode }}">
+      <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><rect x="1" y="1" width="7" height="7" rx="2"/><rect x="10" y="1" width="7" height="7" rx="2"/><rect x="1" y="10" width="7" height="7" rx="2"/><rect x="10" y="10" width="7" height="7" rx="2"/></svg></span>
+      Overview
+    </a>
+    <div class="nav-section-label">Core</div>
+    <a class="nav-item{% if active_nav == 'chat' %} active{% endif %}" href="{{ url_for('page_chat') }}?user_id={{ user_id | urlencode }}">
+      <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h14a1 1 0 011 1v8a1 1 0 01-1 1H6l-4 3V4a1 1 0 011-1z"/></svg></span>
+      Companion Chat <span class="nav-badge">3</span>
+    </a>
+    <a class="nav-item{% if active_nav == 'refresh' %} active{% endif %}" href="{{ url_for('page_refresh') }}?user_id={{ user_id | urlencode }}">
+      <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="9" r="7"/><path d="M9 5v4l2.5 2.5"/></svg></span>
+      Mental Refresh
+    </a>
+    <a class="nav-item{% if active_nav == 'stress' %} active{% endif %}" href="{{ url_for('page_stress') }}?user_id={{ user_id | urlencode }}">
+      <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 2l2 5h5l-4 3 1.5 5L9 12l-4.5 3L6 10 2 7h5z"/></svg></span>
+      Stress Programs
+    </a>
+    <a class="nav-item{% if active_nav == 'journal' %} active{% endif %}" href="{{ url_for('page_journal') }}?user_id={{ user_id | urlencode }}">
+      <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="2" width="12" height="14" rx="2"/><path d="M6 6h6M6 9h6M6 12h4"/></svg></span>
+      Journal
+    </a>
+    <div class="nav-section-label">Insights</div>
+    <a class="nav-item{% if active_nav == 'analytics' %} active{% endif %}" href="{{ url_for('page_analytics') }}?user_id={{ user_id | urlencode }}">
+      <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 14l4-5 3 3 4-6 3 3"/></svg></span>
+      Mood Analytics
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="avatar" id="sidebarAvatar">A</div>
+      <div class="user-info">
+        <p id="sidebarUserName">You</p>
+        <div class="mood-pulse" id="sidebarMoodLine"><div class="pulse-dot"></div><span id="sidebarMoodText">Checking in…</span></div>
+      </div>
+    </div>
+  </div>
+</aside>

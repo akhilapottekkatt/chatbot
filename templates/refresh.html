@@ -1,0 +1,108 @@
+{% extends "layout.html" %}
+{% block title %}EMO — Mental Refresh{% endblock %}
+{% block head_extra %}
+<style>
+  .refresh-body { flex: 1; overflow-y: auto; padding: 32px; }
+  .refresh-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 32px;
+  }
+  @media (max-width: 1100px) { .refresh-grid { grid-template-columns: repeat(2, 1fr); } }
+  .refresh-card {
+    border-radius: var(--radius); padding: 28px; cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s; position: relative; overflow: hidden;
+    min-height: 180px; display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .refresh-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+  .refresh-card.sage { background: linear-gradient(135deg, #c8e6d4, #8ab49a); }
+  .refresh-card.lavender { background: linear-gradient(135deg, #d4cff0, #9b8ec4); }
+  .refresh-card.sky { background: linear-gradient(135deg, #c5e5f4, #6aabcc); }
+  .refresh-card.blush { background: linear-gradient(135deg, #f5d5cf, #e8a598); }
+  .refresh-card.amber { background: linear-gradient(135deg, #f5dfc5, #d4956a); }
+  .refresh-card.green { background: linear-gradient(135deg, #cce8d4, #5a9e72); }
+  .refresh-card-icon { font-size: 36px; margin-bottom: 12px; }
+  .refresh-card h3 { font-family: var(--serif); font-size: 20px; color: var(--ink); font-weight: 400; }
+  .refresh-card p { font-size: 13px; color: rgba(28,43,36,0.7); margin-top: 4px; }
+  .refresh-card-duration {
+    display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600;
+    padding: 4px 10px; background: rgba(255,255,255,0.5); border-radius: 20px;
+    color: var(--ink); margin-top: 16px; width: fit-content;
+  }
+  .breathing-widget {
+    background: var(--white); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 40px; display: flex; flex-direction: column; align-items: center; gap: 24px;
+  }
+  .breathing-widget h2 { font-family: var(--serif); font-size: 22px; font-weight: 400; color: var(--ink); }
+  .breathing-circle {
+    width: 160px; height: 160px; border-radius: 50%;
+    background: radial-gradient(circle, var(--sage-pale), rgba(138,180,154,0.3));
+    border: 3px solid var(--sage-light); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 4s ease; position: relative;
+  }
+  .breathing-circle.inhale {
+    transform: scale(1.3);
+    background: radial-gradient(circle, var(--lavender-pale), rgba(155,142,196,0.3));
+    border-color: var(--lavender);
+  }
+  .breathing-circle.exhale { transform: scale(0.85); }
+  .breathing-text { font-size: 15px; font-weight: 500; color: var(--ink-mid); }
+  .breathing-counter { font-family: var(--serif); font-size: 36px; color: var(--sage); }
+  .breathing-phases { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; }
+  .phase { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .phase-label { font-size: 11px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.5px; }
+  .phase-duration { font-size: 20px; font-family: var(--serif); color: var(--ink); }
+</style>
+{% endblock %}
+{% block content %}
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">Mental Refresh</div>
+      <div class="topbar-sub">Quick relaxation techniques — 2 to 10 minutes</div>
+    </div>
+  </div>
+
+  <div class="refresh-body">
+    <div class="refresh-grid">
+      <div class="refresh-card sage" onclick="scrollToBreathing()">
+        <div><div class="refresh-card-icon">🌬️</div><h3>Box Breathing</h3><p>Calm your nervous system with rhythmic breathing</p></div>
+        <div class="refresh-card-duration">⏱ 4 minutes</div>
+      </div>
+      <div class="refresh-card lavender">
+        <div><div class="refresh-card-icon">🧠</div><h3>Body Scan</h3><p>Release tension from head to toe, mindfully</p></div>
+        <div class="refresh-card-duration">⏱ 8 minutes</div>
+      </div>
+      <div class="refresh-card sky">
+        <div><div class="refresh-card-icon">🎵</div><h3>Sound Bath</h3><p>Immerse yourself in calming ambient sounds</p></div>
+        <div class="refresh-card-duration">⏱ 5 minutes</div>
+      </div>
+      <div class="refresh-card blush">
+        <div><div class="refresh-card-icon">🌸</div><h3>Visualization</h3><p>Guided imagery to your peaceful mental space</p></div>
+        <div class="refresh-card-duration">⏱ 6 minutes</div>
+      </div>
+      <div class="refresh-card amber">
+        <div><div class="refresh-card-icon">🙏</div><h3>Gratitude Reset</h3><p>Shift perspective with a quick gratitude practice</p></div>
+        <div class="refresh-card-duration">⏱ 3 minutes</div>
+      </div>
+      <div class="refresh-card green">
+        <div><div class="refresh-card-icon">✋</div><h3>Grounding 5-4-3-2-1</h3><p>Anchor yourself to the present moment</p></div>
+        <div class="refresh-card-duration">⏱ 2 minutes</div>
+      </div>
+    </div>
+
+    <div class="breathing-widget" id="breathingWidget">
+      <h2>Box Breathing Exercise</h2>
+      <div class="breathing-circle" id="breathingCircle" onclick="startBreathing()">
+        <div style="text-align:center;">
+          <div class="breathing-text" id="breathingText">Tap to begin</div>
+          <div class="breathing-counter" id="breathingCounter">4</div>
+        </div>
+      </div>
+      <div class="breathing-phases">
+        <div class="phase"><div class="phase-label">Inhale</div><div class="phase-duration">4s</div></div>
+        <div class="phase"><div class="phase-label">Hold</div><div class="phase-duration">4s</div></div>
+        <div class="phase"><div class="phase-label">Exhale</div><div class="phase-duration">4s</div></div>
+        <div class="phase"><div class="phase-label">Hold</div><div class="phase-duration">4s</div></div>
+      </div>
+      <button type="button" class="btn btn-ghost" id="breathingBtn" onclick="startBreathing()">Start Exercise</button>
+    </div>
+  </div>
+{% endblock %}

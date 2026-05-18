@@ -22,10 +22,10 @@ app.include_router(goals_router)
 
 def _page(request: Request, template: str, active_nav: str, user_id: str = "default"):
     return templates.TemplateResponse(
-        template,
-        {"request": request, "active_nav": active_nav, "user_id": user_id or "default"},
+        request=request,
+        name=template,
+        context={"active_nav": active_nav, "user_id": user_id or "default"},
     )
-
 @app.get("/api/health")
 def api_health():
     return {
