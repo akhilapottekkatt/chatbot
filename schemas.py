@@ -24,7 +24,13 @@ class JournalCreate(BaseModel):
     user_id: str = Field(default="default", min_length=1)
     content: str = Field(min_length=1)
     mood: Optional[str] = None
-    tags: str = ""  # your addition ✅
+    tags: str = ""  # your addition ✅class JournalCreate(BaseModel):
+    user_id: str = Field(default="default", min_length=1)
+    title: Optional[str] = None
+    content: str = Field(min_length=1)
+    mood_selected: Optional[str] = None
+    mood_note: Optional[str] = None
+    tags: Optional[str] = None
 
 class GoalCreate(BaseModel):
     user_id: str = Field(default="default", min_length=1)

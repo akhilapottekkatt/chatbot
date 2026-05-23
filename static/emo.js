@@ -300,6 +300,9 @@
               '</div><div class="entry-mood">' +
               escapeHtml(row.mood || "📝") +
               "</div>";
+              item.onclick = function() {
+                openEntry(row.id);
+              };
             list.appendChild(item);
           });
         })
@@ -307,6 +310,22 @@
           list.innerHTML = '<div class="entry-preview">Could not load entries.</div>';
         });
     }
+    window.openEntry = function(entryId) {
+  apiJson("/api/journal/entry/" + entryId)
+    .then(function(entry) {
+      ta.value = entry.content || "";
+      window.updateWordCount();
+      var mood = entry.mood || "Neutral";
+      document.querySelectorAll(".mood-scale-item").forEach(function(item) {
+        item.classList.remove("selected");
+        if (item.dataset.mood === mood) item.classList.add("selected");
+      });
+    })
+    .catch(function() {
+      alert("Could not open entry");
+    });
+};
+
 
     loadJournalRecent();
   }
