@@ -57,6 +57,11 @@
     color: var(--ink-mid); cursor: pointer; line-height: 1.5; transition: opacity 0.2s;
   }
   .prompt-pill:hover { opacity: 0.8; }
+  .entry-item * {
+  pointer-events: none;
+}
+  
+  
 </style>
 {% endblock %}
 {% block content %}
@@ -77,12 +82,12 @@
         <div class="mood-picker-card">
           <div class="mood-picker-label">How are you feeling right now?</div>
           <div class="mood-scale">
-            <div class="mood-scale-item" onclick="pickMood(this)"><span>😔</span>Low</div>
-            <div class="mood-scale-item" onclick="pickMood(this)"><span>😟</span>Down</div>
-            <div class="mood-scale-item selected" onclick="pickMood(this)"><span>😐</span>Neutral</div>
-            <div class="mood-scale-item" onclick="pickMood(this)"><span>🙂</span>Good</div>
-            <div class="mood-scale-item" onclick="pickMood(this)"><span>😊</span>Great</div>
-            <div class="mood-scale-item" onclick="pickMood(this)"><span>🌟</span>Wonderful</div>
+            <div class="mood-scale-item" onclick="pickMood(this)" data-mood="Happy"><span>😊</span>Happy</div>
+            <div class="mood-scale-item" onclick="pickMood(this)" data-mood="Sad"><span>😢</span>Sad</div>
+            <div class="mood-scale-item" onclick="pickMood(this)" data-mood="Anxious"><span>😰</span>Anxious</div>
+            <div class="mood-scale-item" onclick="pickMood(this)" data-mood="Stressed"><span>😤</span>Stressed</div>
+            <div class="mood-scale-item selected" onclick="pickMood(this)" data-mood="Neutral"><span>😐</span>Neutral</div>
+            <div class="mood-scale-item" onclick="pickMood(this)" data-mood="Not Sure"><span>❓</span>Not Sure</div>
           </div>
         </div>
 
@@ -122,4 +127,4 @@
       </div>
     </div>
   </div>
-{% endblock %}
+  {% endblock %}
