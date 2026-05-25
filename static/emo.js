@@ -225,13 +225,7 @@
       if (wc) wc.textContent = count + (count === 1 ? " word" : " words");
     };
 
-    window.pickMood = function (el) {
-      el.closest(".mood-scale").querySelectorAll(".mood-scale-item").forEach(function (i) {
-        i.classList.remove("selected");
-      });
-      el.classList.add("selected");
-    };
-
+   
     window.toggleTag = function (el) {
       el.classList.toggle("active");
     };
@@ -241,45 +235,87 @@
       if (p) p.textContent = '"' + el.textContent.trim() + '"';
       ta.focus();
     };
+    var prompts = {
+  Low: [
+    "What is one small thing that felt okay today, even briefly?",
+    "What does your body need right now that it isn't getting?",
+    "What would you say to a friend who felt the way you do today?",
+  ],
+  Neutral: [
+    "What is one thing that brought you a moment of peace today, however small?",
+    "What's been quietly on your mind that you haven't said out loud?",
+    "Describe your day in three honest words.",
+  ],
+  Good: [
+    "What made today feel lighter than usual?",
+    "What are you grateful for that you don't say enough?",
+    "What momentum do you want to carry into tomorrow?",
+  ],
+};
+
+var promptIndex = 0;
+var viewingEntry = false;
+
+function setPrompt(mood) {
+  var list = prompts[mood] || prompts["Neutral"];
+  var p = document.getElementById("journalPrompt");
+  if (p) p.textContent = '"' + list[promptIndex % list.length] + '"';
+}
+
+window.cyclePrompt = function () {
+  var moodItem = document.querySelector(".mood-scale-item.selected");
+  var mood = moodItem ? moodItem.dataset.mood : "Neutral";
+  promptIndex++;
+  setPrompt(mood);
+};
+
+window.pickMood = function (el) {
+  if (viewingEntry) return;
+  document.querySelectorAll(".mood-scale-item").forEach(function (i) {
+    i.classList.remove("selected");
+  });
+  el.classList.add("selected");
+  promptIndex = 0;
+  setPrompt(el.dataset.mood);
+};
+// set initial prompt on load
+setPrompt("Neutral");
 
     window.saveEntry = function () {
+
       var text = ta.value.trim();
       if (!text) {
         alert("Please write something before saving.");
         return;
       }
-      var moodItem = document.querySelector(".mood-scale-item.selected");
-      var moodLabel = "";
-      if (moodItem) {
-        moodLabel = moodItem.cloneNode(true);
-        var sp = moodLabel.querySelector("span");
-        if (sp) sp.remove();
-        moodLabel = moodLabel.textContent.trim();
-      }
-      var tags = Array.from(document.querySelectorAll(".tag.active"))
-        .map(function (t) {
-          return t.textContent.trim();
-        })
-        .join(", ");
-      apiJson("/api/journal", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: uid,
-          content: text + (tags ? "\n\nTags: " + tags : ""),
-          mood: moodLabel || null,
-        }),
-      })
-        .then(function () {
-          alert("Entry saved.");
-          ta.value = "";
-          window.updateWordCount();
-          loadJournalRecent();
-        })
-        .catch(function (e) {
-          alert("Save failed: " + e.message);
-        });
-    };
+      viewingEntry = false;
+     var moodItem = document.querySelector(".mood-scale-item.selected");
+     var moodLabel = moodItem ? moodItem.dataset.mood : null;
+     var promptText = document.getElementById("journalPrompt").textContent.replace(/^"|"$/g, "");
+     var tags = Array.from(document.querySelectorAll(".tag.active"))
+    .map(function (t) { return t.textContent.trim(); })
+    .join(", ");
+  apiJson("/api/journal", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      user_id: uid,
+      content: text,
+      mood_selected: moodLabel || null,
+      tags: tags || null,
+      prompt: promptText || null,
+    }),
+  })
+    .then(function () {
+      alert("Entry saved.");
+      ta.value = "";
+      window.updateWordCount();
+      loadJournalRecent();
+    })
+    .catch(function (e) {
+      alert("Save failed: " + e.message);
+    });
+};
 
     function loadJournalRecent() {
       var list = document.getElementById("journalRecentList");
@@ -313,6 +349,7 @@
     window.openEntry = function(entryId) {
   apiJson("/api/journal/entry/" + entryId)
     .then(function(entry) {
+      viewingEntry = true;
       ta.value = entry.content || "";
       window.updateWordCount();
       var mood = entry.mood || "Neutral";
@@ -320,7 +357,10 @@
         item.classList.remove("selected");
         if (item.dataset.mood === mood) item.classList.add("selected");
       });
+       var p = document.getElementById("journalPrompt");
+      if (p && entry.prompt) p.textContent = '"' + entry.prompt + '"';
     })
+  
     .catch(function() {
       alert("Could not open entry");
     });

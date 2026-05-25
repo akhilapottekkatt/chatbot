@@ -33,6 +33,7 @@ class JournalEntry(Base):
     tags = Column(String, nullable=True)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    prompt = Column(String, nullable=True)
 class Goal(Base):
     __tablename__ = "goals"
     id = Column(Integer, primary_key=True, index=True)
