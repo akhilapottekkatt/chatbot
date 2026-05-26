@@ -263,6 +263,7 @@ function setPrompt(mood) {
 }
 
 window.cyclePrompt = function () {
+  if (viewingEntry) return;
   var moodItem = document.querySelector(".mood-scale-item.selected");
   var mood = moodItem ? moodItem.dataset.mood : "Neutral";
   promptIndex++;
