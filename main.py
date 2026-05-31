@@ -10,7 +10,6 @@ from routes.goals import router as goals_router
 from routes.journal import router as journal_router
 from routes.mood import router as mood_router
 
-<<<<<<< HEAD
 app = FastAPI(title="Mental Health Chatbot API", version="1.0.0")
 Base.metadata.create_all(bind=engine)
 run_sqlite_migrations(engine)
@@ -21,12 +20,14 @@ templates = Jinja2Templates(directory="templates")
 app.include_router(chat_router)
 app.include_router(mood_router)
 app.include_router(goals_router)
+app.include_router(journal_router)
 
 
 def _page(request: Request, template: str, active_nav: str, user_id: str = "default"):
     return templates.TemplateResponse(
-        template,
-        {"request": request, "active_nav": active_nav, "user_id": user_id or "default"},
+        request=request,
+        name=template,
+        context={"active_nav": active_nav, "user_id": user_id or "default"},
     )
 
 
@@ -72,13 +73,13 @@ def page_stress(request: Request, user_id: str = "default"):
 @app.get("/analytics", response_class=HTMLResponse, name="page_analytics")
 def page_analytics(request: Request, user_id: str = "default"):
     return _page(request, "analytics.html", "analytics", user_id)
-=======
 
 
-class ChatInput(BaseModel):
-    message: str
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+# class ChatInput(BaseModel):
+#     message: str
+
+# client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 
-@app.post("/chat")
+# # @app.post("/chat")
